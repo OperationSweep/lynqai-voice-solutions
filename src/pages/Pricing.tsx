@@ -6,6 +6,9 @@ import { Check, Star, Building2, Scissors, Stethoscope } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Navbar } from "@/components/landing/Navbar";
 import { Footer } from "@/components/landing/Footer";
+import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 type Vertical = "real_estate" | "beauty" | "dental";
 
@@ -18,27 +21,29 @@ const verticals = [
 const plans = [
   {
     name: "Starter",
+    tier: "starter",
     monthlyPrice: 97,
     yearlyPrice: 81,
     description: "Perfect for small businesses just getting started",
     features: [
-      "100 minutes included",
+      "200 minutes included",
       "1 phone number",
       "24/7 AI receptionist",
       "Call transcripts",
       "Basic CRM sync",
       "Email support",
-      "$0.50/min overage",
+      "$0.35/min overage",
     ],
     popular: false,
   },
   {
     name: "Professional",
+    tier: "professional",
     monthlyPrice: 297,
     yearlyPrice: 247,
     description: "For growing businesses that need more power",
     features: [
-      "500 minutes included",
+      "600 minutes included",
       "2 phone numbers",
       "Everything in Starter",
       "SMS follow-ups",
@@ -50,6 +55,7 @@ const plans = [
   },
   {
     name: "Growth",
+    tier: "growth",
     monthlyPrice: 597,
     yearlyPrice: 497,
     description: "For businesses ready to scale",
@@ -60,7 +66,7 @@ const plans = [
       "Unlimited workflows",
       "White-label option",
       "Dedicated account manager",
-      "$0.25/min overage",
+      "$0.35/min overage",
     ],
     popular: false,
   },
@@ -69,7 +75,41 @@ const plans = [
 const Pricing = () => {
   const [isAnnual, setIsAnnual] = useState(false);
   const [selectedVertical, setSelectedVertical] = useState<Vertical>("real_estate");
+  const [loadingTier, setLoadingTier] = useState<string | null>(null);
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const { toast } = useToast();
+
+  const handleSubscribe = async (tier: string) => {
+    if (!user) {
+      navigate("/signup");
+      return;
+    }
+
+    setLoadingTier(tier);
+    try {
+      const { data, error } = await supabase.functions.invoke('create-checkout-session', {
+        body: {
+          tier,
+          successUrl: `${window.location.origin}/dashboard?checkout=success`,
+          cancelUrl: `${window.location.origin}/pricing?checkout=canceled`,
+        }
+      });
+
+      if (error) throw error;
+      if (data?.url) {
+        window.location.href = data.url;
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to start checkout. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoadingTier(null);
+    }
+  };
 
   return (
     <div className="min-h-screen">
@@ -86,7 +126,6 @@ const Pricing = () => {
             </p>
           </div>
 
-          {/* Vertical Tabs */}
           <div className="flex justify-center mb-8">
             <div className="inline-flex bg-muted rounded-xl p-1">
               {verticals.map((v) => (
@@ -107,7 +146,6 @@ const Pricing = () => {
             </div>
           </div>
 
-          {/* Billing Toggle */}
           <div className="flex items-center justify-center gap-4 mb-12">
             <span className={cn("text-sm font-medium", !isAnnual && "text-primary")}>Monthly</span>
             <Switch checked={isAnnual} onCheckedChange={setIsAnnual} />
@@ -119,9 +157,8 @@ const Pricing = () => {
             </span>
           </div>
 
-          {/* Pricing Cards */}
           <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
-            {plans.map((plan, index) => (
+            {plans.map((plan) => (
               <div
                 key={plan.name}
                 className={cn(
@@ -155,7 +192,7 @@ const Pricing = () => {
                   </div>
                   {isAnnual && (
                     <p className={cn("text-sm mt-1", plan.popular ? "text-primary-foreground/80" : "text-muted-foreground")}>
-                      Billed annually (${isAnnual ? plan.yearlyPrice * 12 : plan.monthlyPrice * 12}/year)
+                      Billed annually (${plan.yearlyPrice * 12}/year)
                     </p>
                   )}
                 </div>
@@ -175,15 +212,15 @@ const Pricing = () => {
                   className="w-full"
                   variant={plan.popular ? "hero-outline" : "hero"}
                   size="lg"
-                  onClick={() => navigate("/signup")}
+                  onClick={() => handleSubscribe(plan.tier)}
+                  disabled={loadingTier === plan.tier}
                 >
-                  Start Free Trial
+                  {loadingTier === plan.tier ? "Loading..." : user ? "Subscribe Now" : "Start Free Trial"}
                 </Button>
               </div>
             ))}
           </div>
 
-          {/* FAQ Link */}
           <div className="text-center mt-16">
             <p className="text-muted-foreground">
               Have questions?{" "}

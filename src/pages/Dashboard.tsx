@@ -1,18 +1,22 @@
-import { Link } from "react-router-dom";
+import { useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { Phone, Clock, Calendar, Users, TrendingUp, AlertTriangle, ArrowRight, ArrowUpRight } from "lucide-react";
+import { Phone, Clock, Calendar, Users, TrendingUp, AlertTriangle, ArrowRight, ArrowUpRight, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useProfile } from "@/hooks/useProfile";
 import { useUsage } from "@/hooks/useUsage";
 import { useCallLogs } from "@/hooks/useCallLogs";
+import { useAgent } from "@/hooks/useAgent";
 import { formatDistanceToNow } from "date-fns";
 
 const Dashboard = () => {
+  const navigate = useNavigate();
   const { data: profile, isLoading: profileLoading } = useProfile();
   const { data: usage, isLoading: usageLoading } = useUsage();
   const { data: recentCalls, isLoading: callsLoading } = useCallLogs({ limit: 5 });
+  const { data: agent, isLoading: agentLoading } = useAgent();
 
   const minutesUsed = Number(usage?.total_minutes || 0);
   const minutesIncluded = profile?.included_minutes || 200;
@@ -37,7 +41,16 @@ const Dashboard = () => {
     return outcome.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
   };
 
-  if (profileLoading || usageLoading) {
+  // Redirect to onboarding if subscription active but no agent
+  useEffect(() => {
+    if (!profileLoading && !agentLoading && profile) {
+      if (profile.subscription_status === 'active' && !profile.onboarding_completed && !agent) {
+        navigate('/onboarding');
+      }
+    }
+  }, [profile, agent, profileLoading, agentLoading, navigate]);
+
+  if (profileLoading || usageLoading || agentLoading) {
     return <div className="flex items-center justify-center h-64">Loading...</div>;
   }
 
@@ -50,6 +63,27 @@ const Dashboard = () => {
         </div>
         <Button variant="hero" asChild><Link to="/dashboard/calls">View All Calls<ArrowRight className="ml-2 h-4 w-4" /></Link></Button>
       </div>
+
+      {/* Agent Phone Number Card */}
+      {agent?.phone_number && (
+        <Card className="border-primary/30 bg-gradient-to-r from-primary/5 to-primary/10">
+          <CardContent className="flex items-center justify-between py-4">
+            <div className="flex items-center gap-4">
+              <div className="h-12 w-12 rounded-full bg-primary/20 flex items-center justify-center">
+                <Phone className="h-6 w-6 text-primary" />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Your AI Receptionist</p>
+                <p className="text-xl font-bold text-primary">{agent.phone_number}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="h-4 w-4 text-accent" />
+              <span className="text-sm font-medium text-accent">Live</span>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {isNearLimit && (
         <Card className="border-destructive/50 bg-destructive/5">

@@ -16,6 +16,7 @@ import CallLogs from "./pages/CallLogs";
 import Integrations from "./pages/Integrations";
 import Settings from "./pages/Settings";
 import Admin from "./pages/Admin";
+import Onboarding from "./pages/Onboarding";
 import NotFound from "./pages/NotFound";
 import { DashboardLayout } from "./components/dashboard/DashboardLayout";
 
@@ -75,6 +76,7 @@ const App = () => (
             <Route path="/signup" element={<Signup />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/pricing" element={<Pricing />} />
+            <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
             
             {/* Dashboard Routes - Protected */}
             <Route path="/dashboard" element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>

@@ -71,7 +71,30 @@ const Settings = () => {
       });
 
       if (error) throw error;
-      if (data?.url) window.location.href = data.url;
+
+      const url = typeof data?.url === "string" ? data.url : null;
+      if (!url) throw new Error("Missing portal URL");
+
+      const inIframe = (() => {
+        try {
+          return window.self !== window.top;
+        } catch {
+          return true;
+        }
+      })();
+
+      if (inIframe) {
+        const popup = window.open(url, "_blank", "noopener,noreferrer");
+        if (!popup) {
+          toast({
+            title: "Portal blocked",
+            description: "Your browser blocked the new tab. Please allow popups and try again.",
+            variant: "destructive",
+          });
+        }
+      } else {
+        window.location.href = url;
+      }
     } catch (error) {
       toast({ title: "Error", description: "Failed to open billing portal.", variant: "destructive" });
     } finally {

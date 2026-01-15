@@ -88,17 +88,39 @@ const Pricing = () => {
 
     setLoadingTier(tier);
     try {
-      const { data, error } = await supabase.functions.invoke('create-checkout-session', {
+      const { data, error } = await supabase.functions.invoke("create-checkout-session", {
         body: {
           tier,
           successUrl: `${window.location.origin}/dashboard?checkout=success`,
           cancelUrl: `${window.location.origin}/pricing?checkout=canceled`,
-        }
+        },
       });
 
       if (error) throw error;
-      if (data?.url) {
-        window.location.href = data.url;
+
+      const url = typeof data?.url === "string" ? data.url : null;
+      if (!url) throw new Error("Missing checkout URL");
+
+      const inIframe = (() => {
+        try {
+          return window.self !== window.top;
+        } catch {
+          return true;
+        }
+      })();
+
+      if (inIframe) {
+        // Stripe forbids being embedded; opening in a new tab prevents a blank iframe.
+        const popup = window.open(url, "_blank", "noopener,noreferrer");
+        if (!popup) {
+          toast({
+            title: "Checkout blocked",
+            description: "Your browser blocked the new tab. Please allow popups and click Subscribe again.",
+            variant: "destructive",
+          });
+        }
+      } else {
+        window.location.href = url;
       }
     } catch (error) {
       toast({

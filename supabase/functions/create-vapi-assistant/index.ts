@@ -136,30 +136,53 @@ serve(async (req) => {
     const assistant = await assistantResponse.json();
     console.log('Created Vapi assistant:', assistant.id);
 
-    // Buy phone number from Vapi
-    const phoneResponse = await fetch('https://api.vapi.ai/phone-number', {
-      method: 'POST',
+    // Try to get or provision phone number from Vapi
+    let phoneNumber = null;
+    
+    // First, check if there are any available phone numbers in the Vapi account
+    const listPhonesResponse = await fetch('https://api.vapi.ai/phone-number', {
+      method: 'GET',
       headers: {
         'Authorization': `Bearer ${vapiApiKey}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        assistantId: assistant.id,
-        provider: 'twilio',
-        numberDesiredAreaCode: '415',
-      }),
     });
 
-    let phoneNumber = null;
-
-    if (phoneResponse.ok) {
-      const phoneData = await phoneResponse.json();
-      phoneNumber = phoneData.number || phoneData.phoneNumber;
-      console.log('Provisioned phone number:', phoneNumber);
+    if (listPhonesResponse.ok) {
+      const phoneNumbers = await listPhonesResponse.json();
+      console.log('Available phone numbers:', JSON.stringify(phoneNumbers));
+      
+      if (Array.isArray(phoneNumbers) && phoneNumbers.length > 0) {
+        // Use the first available phone number and assign assistant to it
+        const existingPhone = phoneNumbers[0];
+        phoneNumber = existingPhone.number || existingPhone.phoneNumber;
+        
+        // Update the phone number to use this assistant
+        if (existingPhone.id) {
+          const updatePhoneResponse = await fetch(`https://api.vapi.ai/phone-number/${existingPhone.id}`, {
+            method: 'PATCH',
+            headers: {
+              'Authorization': `Bearer ${vapiApiKey}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              assistantId: assistant.id,
+            }),
+          });
+          
+          if (updatePhoneResponse.ok) {
+            console.log('Assigned assistant to phone number:', phoneNumber);
+          } else {
+            const updateError = await updatePhoneResponse.text();
+            console.error('Failed to assign assistant to phone:', updateError);
+          }
+        }
+      } else {
+        console.log('No phone numbers available in Vapi account. User can add one manually later.');
+      }
     } else {
-      const phoneError = await phoneResponse.text();
-      console.error('Phone provisioning failed:', phoneError);
-      // Continue without phone - user can add later
+      const listError = await listPhonesResponse.text();
+      console.error('Failed to list phone numbers:', listError);
     }
 
     // Save to database

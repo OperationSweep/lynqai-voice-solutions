@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Input } from "@/components/ui/input";
-import { Phone, Clock, Calendar, Users, TrendingUp, AlertTriangle, ArrowRight, ArrowUpRight, CheckCircle2, ExternalLink, Save, Loader2 } from "lucide-react";
+import { Phone, Clock, Calendar, Users, TrendingUp, AlertTriangle, ArrowRight, ArrowUpRight, CheckCircle2, ExternalLink, Save, Loader2, Pencil, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useProfile } from "@/hooks/useProfile";
 import { useUsage } from "@/hooks/useUsage";
@@ -23,6 +23,7 @@ const Dashboard = () => {
 
   const [phoneNumber, setPhoneNumber] = useState("");
   const [isSavingPhone, setIsSavingPhone] = useState(false);
+  const [isEditingPhone, setIsEditingPhone] = useState(false);
 
   // Sync phone number input with agent data
   useEffect(() => {
@@ -41,6 +42,7 @@ const Dashboard = () => {
         updates: { phone_number: phoneNumber || null }
       });
       toast.success("Phone number saved successfully!");
+      setIsEditingPhone(false);
     } catch (error) {
       console.error("Failed to save phone number:", error);
       toast.error("Failed to save phone number");
@@ -104,7 +106,7 @@ const Dashboard = () => {
             : "bg-gradient-to-r from-amber-500/5 to-amber-500/10 border-amber-500/30"
         )}>
           <CardContent className="py-4">
-            {agent.phone_number ? (
+            {agent.phone_number && !isEditingPhone ? (
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
                   <div className="h-12 w-12 rounded-full bg-primary/20 flex items-center justify-center">
@@ -115,31 +117,58 @@ const Dashboard = () => {
                     <p className="text-xl font-bold text-primary">{agent.phone_number}</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="h-4 w-4 text-accent" />
-                  <span className="text-sm font-medium text-accent">Live</span>
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-accent" />
+                    <span className="text-sm font-medium text-accent">Live</span>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setIsEditingPhone(true)}
+                    className="text-muted-foreground hover:text-primary"
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </Button>
                 </div>
               </div>
             ) : (
               <div className="space-y-4">
                 <div className="flex items-start gap-4">
-                  <div className="h-12 w-12 rounded-full bg-amber-500/20 flex items-center justify-center flex-shrink-0">
-                    <AlertTriangle className="h-6 w-6 text-amber-500" />
+                  <div className={cn(
+                    "h-12 w-12 rounded-full flex items-center justify-center flex-shrink-0",
+                    isEditingPhone ? "bg-primary/20" : "bg-amber-500/20"
+                  )}>
+                    {isEditingPhone ? (
+                      <Phone className="h-6 w-6 text-primary" />
+                    ) : (
+                      <AlertTriangle className="h-6 w-6 text-amber-500" />
+                    )}
                   </div>
                   <div className="flex-1">
-                    <p className="font-medium text-amber-700 dark:text-amber-400">No Phone Number Configured</p>
+                    {isEditingPhone ? (
+                      <p className="font-medium">Update Phone Number</p>
+                    ) : (
+                      <p className="font-medium text-amber-700 dark:text-amber-400">No Phone Number Configured</p>
+                    )}
                     <p className="text-sm text-muted-foreground mt-1">
-                      Your AI receptionist is ready, but needs a phone number. Configure one in your{" "}
-                      <a 
-                        href="https://dashboard.vapi.ai/phone-numbers" 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="text-primary hover:underline inline-flex items-center gap-1"
-                      >
-                        Vapi Dashboard
-                        <ExternalLink className="h-3 w-3" />
-                      </a>
-                      , then enter it below.
+                      {isEditingPhone ? (
+                        "Enter the phone number from your Vapi account."
+                      ) : (
+                        <>
+                          Your AI receptionist is ready, but needs a phone number. Configure one in your{" "}
+                          <a 
+                            href="https://dashboard.vapi.ai/phone-numbers" 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="text-primary hover:underline inline-flex items-center gap-1"
+                          >
+                            Vapi Dashboard
+                            <ExternalLink className="h-3 w-3" />
+                          </a>
+                          , then enter it below.
+                        </>
+                      )}
                     </p>
                   </div>
                 </div>
@@ -164,6 +193,19 @@ const Dashboard = () => {
                       </>
                     )}
                   </Button>
+                  {isEditingPhone && (
+                    <Button 
+                      variant="ghost"
+                      onClick={() => {
+                        setIsEditingPhone(false);
+                        setPhoneNumber(agent.phone_number || "");
+                      }}
+                      size="default"
+                    >
+                      <X className="h-4 w-4 mr-2" />
+                      Cancel
+                    </Button>
+                  )}
                 </div>
               </div>
             )}

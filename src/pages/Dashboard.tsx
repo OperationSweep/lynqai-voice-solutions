@@ -1,15 +1,17 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { Phone, Clock, Calendar, Users, TrendingUp, AlertTriangle, ArrowRight, ArrowUpRight, CheckCircle2 } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Phone, Clock, Calendar, Users, TrendingUp, AlertTriangle, ArrowRight, ArrowUpRight, CheckCircle2, ExternalLink, Save, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useProfile } from "@/hooks/useProfile";
 import { useUsage } from "@/hooks/useUsage";
 import { useCallLogs } from "@/hooks/useCallLogs";
-import { useAgent } from "@/hooks/useAgent";
+import { useAgent, useUpdateAgent } from "@/hooks/useAgent";
 import { formatDistanceToNow } from "date-fns";
+import { toast } from "sonner";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -17,6 +19,35 @@ const Dashboard = () => {
   const { data: usage, isLoading: usageLoading } = useUsage();
   const { data: recentCalls, isLoading: callsLoading } = useCallLogs({ limit: 5 });
   const { data: agent, isLoading: agentLoading } = useAgent();
+  const updateAgent = useUpdateAgent();
+
+  const [phoneNumber, setPhoneNumber] = useState("");
+  const [isSavingPhone, setIsSavingPhone] = useState(false);
+
+  // Sync phone number input with agent data
+  useEffect(() => {
+    if (agent?.phone_number) {
+      setPhoneNumber(agent.phone_number);
+    }
+  }, [agent?.phone_number]);
+
+  const handleSavePhoneNumber = async () => {
+    if (!agent?.id) return;
+    
+    setIsSavingPhone(true);
+    try {
+      await updateAgent.mutateAsync({
+        id: agent.id,
+        updates: { phone_number: phoneNumber || null }
+      });
+      toast.success("Phone number saved successfully!");
+    } catch (error) {
+      console.error("Failed to save phone number:", error);
+      toast.error("Failed to save phone number");
+    } finally {
+      setIsSavingPhone(false);
+    }
+  };
 
   const minutesUsed = Number(usage?.total_minutes || 0);
   const minutesIncluded = profile?.included_minutes || 200;
@@ -65,22 +96,77 @@ const Dashboard = () => {
       </div>
 
       {/* Agent Phone Number Card */}
-      {agent?.phone_number && (
-        <Card className="border-primary/30 bg-gradient-to-r from-primary/5 to-primary/10">
-          <CardContent className="flex items-center justify-between py-4">
-            <div className="flex items-center gap-4">
-              <div className="h-12 w-12 rounded-full bg-primary/20 flex items-center justify-center">
-                <Phone className="h-6 w-6 text-primary" />
+      {agent && (
+        <Card className={cn(
+          "border-primary/30",
+          agent.phone_number 
+            ? "bg-gradient-to-r from-primary/5 to-primary/10" 
+            : "bg-gradient-to-r from-amber-500/5 to-amber-500/10 border-amber-500/30"
+        )}>
+          <CardContent className="py-4">
+            {agent.phone_number ? (
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="h-12 w-12 rounded-full bg-primary/20 flex items-center justify-center">
+                    <Phone className="h-6 w-6 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Your AI Receptionist</p>
+                    <p className="text-xl font-bold text-primary">{agent.phone_number}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-accent" />
+                  <span className="text-sm font-medium text-accent">Live</span>
+                </div>
               </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Your AI Receptionist</p>
-                <p className="text-xl font-bold text-primary">{agent.phone_number}</p>
+            ) : (
+              <div className="space-y-4">
+                <div className="flex items-start gap-4">
+                  <div className="h-12 w-12 rounded-full bg-amber-500/20 flex items-center justify-center flex-shrink-0">
+                    <AlertTriangle className="h-6 w-6 text-amber-500" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-medium text-amber-700 dark:text-amber-400">No Phone Number Configured</p>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Your AI receptionist is ready, but needs a phone number. Configure one in your{" "}
+                      <a 
+                        href="https://dashboard.vapi.ai/phone-numbers" 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-primary hover:underline inline-flex items-center gap-1"
+                      >
+                        Vapi Dashboard
+                        <ExternalLink className="h-3 w-3" />
+                      </a>
+                      , then enter it below.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex gap-2 ml-16">
+                  <Input
+                    placeholder="+1 (555) 123-4567"
+                    value={phoneNumber}
+                    onChange={(e) => setPhoneNumber(e.target.value)}
+                    className="max-w-xs"
+                  />
+                  <Button 
+                    onClick={handleSavePhoneNumber}
+                    disabled={isSavingPhone || !phoneNumber.trim()}
+                    size="default"
+                  >
+                    {isSavingPhone ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <>
+                        <Save className="h-4 w-4 mr-2" />
+                        Save
+                      </>
+                    )}
+                  </Button>
+                </div>
               </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <CheckCircle2 className="h-4 w-4 text-accent" />
-              <span className="text-sm font-medium text-accent">Live</span>
-            </div>
+            )}
           </CardContent>
         </Card>
       )}

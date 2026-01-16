@@ -108,10 +108,8 @@ serve(async (req) => {
           temperature: 0.7,
         },
         voice: {
-          provider: '11labs',
-          voiceId: 'rachel',
-          stability: 0.5,
-          similarityBoost: 0.75,
+          provider: 'vapi',
+          voiceId: 'Elliot',
         },
         serverUrl: `${supabaseUrl}/functions/v1/handle-vapi-webhook`,
         endCallFunctionEnabled: true,
